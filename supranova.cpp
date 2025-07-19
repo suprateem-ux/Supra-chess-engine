@@ -11,7 +11,6 @@
 #include <future>
 #include <queue>
 
-// Removed: #include "search.h", "position.h", "tt.h"
 #include "bitboard.h"
 #include "movegen.h"
 #include "evaluate.h"
@@ -50,47 +49,7 @@ namespace Syzygy { void init(const std::string&) {} }
 
 enum Color { WHITE, BLACK };
 
-class Move {
-    int data;
-public:
-    Move() : data(0) {}
-    Move(int from, int to, int promo = 0, int type = 0) {
-        data = (from & 0x3F) | ((to & 0x3F) << 6) | ((promo & 0xF) << 12) | ((type & 0x7) << 16);
-    }
-    int from() const { return data & 0x3F; }
-    int to() const { return (data >> 6) & 0x3F; }
-    std::string to_string() const {
-        std::string s = SquareNames[from()];
-        s += SquareNames[to()];
-        return s;
-    }
-    bool operator==(const Move& other) const { return data == other.data; }
-    bool operator!=(const Move& other) const { return !(*this == other); }
-};
-
-class Position {
-public:
-    Color side;
-    Position() : side(WHITE) {}
-    Color side_to_move() const { return side; }
-    void parse_position(const std::string&) {}
-};
-
 Position current_position;
-
-namespace Search {
-    constexpr int MAX_DEPTH = 64;
-    constexpr int INF = 100000;
-
-    struct SearchStack {
-        Move pv[64];
-        int pv_length = 0;
-    };
-
-    int search(Position&, SearchStack*, int, int, int, int, bool) {
-        return 0;
-    }
-}
 
 int multiPV = 1;
 bool ponder = false;
@@ -110,8 +69,15 @@ int main() {
     return 0;
 }
 
-// --------------------- Search Namespace ---------------------
 namespace Search {
+    constexpr int MAX_DEPTH = 64;
+    constexpr int INF = 100000;
+
+    struct SearchStack {
+        Move pv[64];
+        int pv_length = 0;
+    };
+
     int threads = 4;
     std::mutex mtx;
     std::condition_variable cv;
@@ -125,21 +91,8 @@ namespace Search {
         threads = std::max(1, n);
     }
 
-    void start_search(const std::string& cmd) {
-        TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
-        TimeManager::start_timer();
-        ready = false;
-        working_threads = threads;
-
-        std::vector<std::thread> pool;
-        for (int i = 0; i < threads; ++i)
-            pool.emplace_back(search_thread, i);
-
-        ready = true;
-        cv.notify_all();
-
-        for (auto& t : pool)
-            t.join();
+    int search(Position&, SearchStack*, int, int, int, int, bool) {
+        return 0;
     }
 
     void search_thread(int id) {
@@ -200,6 +153,23 @@ namespace Search {
         }
     }
 
+    void start_search(const std::string& cmd) {
+        TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
+        TimeManager::start_timer();
+        ready = false;
+        working_threads = threads;
+
+        std::vector<std::thread> pool;
+        for (int i = 0; i < threads; ++i)
+            pool.emplace_back(search_thread, i);
+
+        ready = true;
+        cv.notify_all();
+
+        for (auto& t : pool)
+            t.join();
+    }
+
     void update_killer(int ply, Move move) {
         if (killerMoves[0][ply] != move) {
             killerMoves[1][ply] = killerMoves[0][ply];
@@ -212,12 +182,11 @@ namespace Search {
     }
 }
 
-// --------------------- UCI Namespace ---------------------
 namespace UCI {
     void set_option(const std::string& cmd) {
         std::istringstream ss(cmd);
         std::string token, name, value;
-        ss >> token >> token; // skip "setoption name"
+        ss >> token >> token;
         while (ss >> token && token != "value") name += token + " ";
         while (ss >> token) value += token;
 
@@ -250,7 +219,7 @@ namespace UCI {
                 set_option(line);
             } else if (line == "quit") {
                 quit = true;
-                Search::cv.notify_all(); // wake up threads
+                Search::cv.notify_all();
                 break;
             }
         }
