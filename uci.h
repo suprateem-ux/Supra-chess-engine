@@ -1,0 +1,6 @@
+#pragma once
+#include <string>
+
+namespace UCI {
+    void set_option(const std::string& cmd);
+}
