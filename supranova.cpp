@@ -21,6 +21,7 @@
 #include "syzygy.h"
 #include "polyglot.h"
 #include "time.h"
+#include "position.h"
 
 int multiPV = 1;
 bool ponder = false;
