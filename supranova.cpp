@@ -18,7 +18,6 @@
 #include "syzygy.h"
 #include "polyglot.h"
 #include "time.h"
-#include "position.h"
 
 const char* SquareNames[64] = {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
