@@ -48,6 +48,27 @@ namespace Polyglot { void load(const std::string&) {} }
 namespace Syzygy { void init(const std::string&) {} }
 
 enum Color { WHITE, BLACK };
+class Position {
+public:
+    // Minimal members for now
+    std::string fen;
+
+    Position() = default;
+
+    Position(const std::string& fen_str) {
+        set_fen(fen_str);
+    }
+
+    void set_fen(const std::string& fen_str) {
+        fen = fen_str;
+        // TODO: Actually parse FEN
+    }
+
+    std::string get_fen() const {
+        return fen;
+    }
+};
+
 
 Position current_position;
 
