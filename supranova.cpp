@@ -87,7 +87,6 @@ namespace Search {
     for (auto& t : pool) t.join();
 }
 
-
     void search_thread(int id) {
     while (true) {
         std::unique_lock<std::mutex> lock(mtx);
@@ -102,21 +101,19 @@ namespace Search {
         int best_score = -INF;
         Move best_move = Move::none();
 
-        // Start the timer for this thread
-        if (thread_id == 0) TimeManager::start_timer();
+        if (id == 0) TimeManager::start_timer();
 
         for (int depth = 1; depth <= MAX_DEPTH; ++depth) {
-            // Check time limit
-            if (thread_id == 0 && TimeManager::time_up()) break;
+            if (id == 0 && TimeManager::time_up()) break;
 
             int score = search(pos, stack, alpha, beta, depth, 0, true);
 
-            if (thread_id == 0 && TimeManager::time_up()) break;
+            if (id == 0 && TimeManager::time_up()) break;
 
             if (score <= alpha || score >= beta) {
                 alpha = -INF;
                 beta = INF;
-                continue; // fail-low or fail-high, re-search
+                continue;
             }
 
             best_score = score;
@@ -124,7 +121,7 @@ namespace Search {
             alpha = score - 50;
             beta = score + 50;
 
-            if (thread_id == 0) {
+            if (id == 0) {
                 std::cout << "info depth " << depth
                           << " score cp " << score
                           << " time " << TimeManager::time_remaining()
@@ -134,12 +131,10 @@ namespace Search {
                 std::cout << std::endl;
             }
 
-            // Time management check again mid-loop
-            if (thread_id == 0 && TimeManager::time_up()) break;
+            if (id == 0 && TimeManager::time_up()) break;
         }
 
-        // Only thread 0 outputs the best move
-        if (thread_id == 0 && best_move != Move::none()) {
+        if (id == 0 && best_move != Move::none()) {
             std::cout << "bestmove " << uci_format(best_move) << std::endl;
         }
 
@@ -149,6 +144,7 @@ namespace Search {
         lock.unlock();
     }
 }
+
 
 
     void update_killer(int ply, Move move) {
