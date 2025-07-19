@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '**.cpp'
+      - '**.h'
       - '.github/workflows/build.yml'
   workflow_dispatch:
 
@@ -13,19 +14,22 @@ jobs:
     strategy:
       matrix:
         target: [linux, windows]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Windows cross-compiler
         if: matrix.target == 'windows'
-        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
       - name: Build for Linux (BMI2)
         if: matrix.target == 'linux'
         run: |
-          g++ -O3 -march=haswell -std=c++20 -pthread *.cpp -o supranova-linux
-          
+          g++ -O3 -march=haswell -std=c++20 -pthread *.cpp -o supranova-bmi2-linux
+
       - name: Build for Windows
         if: matrix.target == 'windows'
         run: |
@@ -42,5 +46,5 @@ jobs:
         if: matrix.target == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: supranova.exe
+          name: supranova-windows-exe
           path: supranova.exe
