@@ -73,44 +73,81 @@ namespace Search {
     void set_threads(int n) { threads = std::max(1, n); }
 
     void start_search(const std::string& cmd) {
-        parse_time_control(cmd);
-        ready = false;
-        working_threads = threads;
-        std::vector<std::thread> pool;
-        for (int i = 0; i < threads; ++i)
-            pool.emplace_back(search_thread, i);
-        ready = true;
-        cv.notify_all();
-        for (auto& t : pool) t.join();
-    }
+    TimeManager::set_time_control(cmd, Position::side_to_move() == WHITE);
+    TimeManager::start_timer();
+    ready = false;
+    working_threads = threads;
+    std::vector<std::thread> pool;
+    for (int i = 0; i < threads; ++i)
+        pool.emplace_back(search_thread, i);
+    ready = true;
+    cv.notify_all();
+    for (auto& t : pool) t.join();
+}
+
 
     void search_thread(int id) {
+    while (true) {
         std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [] { return ready.load(); });
+        cv.wait(lock, [] { return ready || quit; });
+        if (quit) break;
         lock.unlock();
 
-        Position pos;
-        Score alpha = -INF, beta = INF;
-        std::vector<Move> bestMoves(multiPV);
+        Position pos = current_position;
+        SearchStack stack[MAX_DEPTH + 1] = {};
+        int alpha = -INF;
+        int beta = INF;
+        int best_score = -INF;
+        Move best_move = Move::none();
+
+        // Start the timer for this thread
+        if (thread_id == 0) TimeManager::start_timer();
 
         for (int depth = 1; depth <= MAX_DEPTH; ++depth) {
-            std::vector<std::pair<Move, Score>> scoredMoves;
-            for (int i = 0; i < multiPV; ++i) {
-                Move m = search(pos, alpha, beta, depth);
-                scoredMoves.emplace_back(m, eval(pos) + contempt * (pos.side_to_move() == WHITE ? 1 : -1));
+            // Check time limit
+            if (thread_id == 0 && TimeManager::time_up()) break;
+
+            int score = search(pos, stack, alpha, beta, depth, 0, true);
+
+            if (thread_id == 0 && TimeManager::time_up()) break;
+
+            if (score <= alpha || score >= beta) {
+                alpha = -INF;
+                beta = INF;
+                continue; // fail-low or fail-high, re-search
             }
-            std::sort(scoredMoves.begin(), scoredMoves.end(), [](auto& a, auto& b) { return a.second > b.second; });
-            for (int i = 0; i < multiPV && i < scoredMoves.size(); ++i) {
-                std::cout << "info depth " << depth << " multipv " << (i+1) << " score cp " << scoredMoves[i].second << " pv " << scoredMoves[i].first.to_string() << std::endl;
+
+            best_score = score;
+            best_move = stack[0].pv[0];
+            alpha = score - 50;
+            beta = score + 50;
+
+            if (thread_id == 0) {
+                std::cout << "info depth " << depth
+                          << " score cp " << score
+                          << " time " << TimeManager::time_remaining()
+                          << " pv";
+                for (int i = 0; i < stack[0].pv_length; ++i)
+                    std::cout << " " << uci_format(stack[0].pv[i]);
+                std::cout << std::endl;
             }
-            bestMoves = {};
-            for (auto& p : scoredMoves) bestMoves.push_back(p.first);
+
+            // Time management check again mid-loop
+            if (thread_id == 0 && TimeManager::time_up()) break;
         }
-        std::cout << "bestmove " << bestMoves[0].to_string();
-        if (ponder) std::cout << " ponder e2e4"; // placeholder
-        std::cout << std::endl;
-        --working_threads;
+
+        // Only thread 0 outputs the best move
+        if (thread_id == 0 && best_move != Move::none()) {
+            std::cout << "bestmove " << uci_format(best_move) << std::endl;
+        }
+
+        lock.lock();
+        if (--working_threads == 0)
+            ready = false;
+        lock.unlock();
     }
+}
+
 
     void update_killer(int ply, Move move) {
         if (killerMoves[0][ply] != move) {
