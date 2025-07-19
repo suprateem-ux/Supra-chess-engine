@@ -1,5 +1,6 @@
 #pragma once
 
+// Define squares as enum values from a1 to h8, plus NO_SQUARE
 enum Square {
     A1, B1, C1, D1, E1, F1, G1, H1,
     A2, B2, C2, D2, E2, F2, G2, H2,
@@ -8,5 +9,9 @@ enum Square {
     A5, B5, C5, D5, E5, F5, G5, H5,
     A6, B6, C6, D6, E6, F6, G6, H6,
     A7, B7, C7, D7, E7, F7, G7, H7,
-    A8, B8, C8, D8, E8, F8, G8, H8, NO_SQUARE
+    A8, B8, C8, D8, E8, F8, G8, H8,
+    NO_SQUARE
 };
+
+// This extern declaration tells the compiler that the array is defined elsewhere (in supranova.cpp)
+extern const char* SquareNames[64];
