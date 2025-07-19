@@ -1,5 +1,7 @@
 // === SupraNova C++ UCI Chess Engine Core ===
-// Includes: Full bitboard generation, SEE, PVS, LMR (adaptive), NMP, Syzygy, Polyglot, UCI interface, Singular Extensions, Pawn Hash, Advanced MT, Pondering, Multi-PV, Killer/History Heuristics, Thread Pools, Contempt
+// Includes: Full bitboard generation, SEE, PVS, LMR (adaptive), NMP, Syzygy, Polyglot, UCI interface,
+//           Singular Extensions, Pawn Hash, Advanced MT, Pondering, Multi-PV, Killer/History Heuristics,
+//           Thread Pools, Contempt
 
 #include <iostream>
 #include <thread>
@@ -34,11 +36,11 @@ int main() {
     TT.resize(64 * 1024 * 1024);
     Polyglot::load("book.bin");
     Syzygy::init("syzygy/");
-    UCI::uci_loop();  // <--- FIXED: Added UCI:: namespace
+    UCI::uci_loop();
     return 0;
 }
 
-
+// --------------------- UCI Loop ---------------------
 void uci_loop() {
     std::string line;
     while (std::getline(std::cin, line)) {
@@ -63,6 +65,7 @@ void uci_loop() {
     }
 }
 
+// --------------------- Search Namespace ---------------------
 namespace Search {
     int threads = 4;
     std::mutex mtx;
@@ -73,80 +76,84 @@ namespace Search {
     int historyHeuristics[64][64] = {};
     float contempt = 0.0f;
 
-    void set_threads(int n) { threads = std::max(1, n); }
+    void set_threads(int n) {
+        threads = std::max(1, n);
+    }
 
     void start_search(const std::string& cmd) {
-    TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
-    TimeManager::start_timer();
-    ready = false;
-    working_threads = threads;
-    std::vector<std::thread> pool;
-    for (int i = 0; i < threads; ++i)
-        pool.emplace_back(search_thread, i);
-    ready = true;
-    cv.notify_all();
-    for (auto& t : pool) t.join();
-}
+        TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
+        TimeManager::start_timer();
+        ready = false;
+        working_threads = threads;
+
+        std::vector<std::thread> pool;
+        for (int i = 0; i < threads; ++i)
+            pool.emplace_back(search_thread, i);
+
+        ready = true;
+        cv.notify_all();
+
+        for (auto& t : pool)
+            t.join();
+    }
 
     void search_thread(int id) {
-    while (true) {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [] { return ready.load(); });
-        if (quit) break;
-        lock.unlock();
+        while (true) {
+            std::unique_lock<std::mutex> lock(mtx);
+            cv.wait(lock, [] { return ready.load(); });
+            if (quit) break;
+            lock.unlock();
 
-        Position pos = current_position;
-        SearchStack stack[MAX_DEPTH + 1] = {};
-        int alpha = -INF;
-        int beta = INF;
-        int best_score = -INF;
-        Move best_move = Move::none();
+            Position pos = current_position;
+            SearchStack stack[MAX_DEPTH + 1] = {};
+            int alpha = -INF;
+            int beta = INF;
+            int best_score = -INF;
+            Move best_move = Move::none();
 
-        if (id == 0) TimeManager::start_timer();
+            if (id == 0) TimeManager::start_timer();
 
-        for (int depth = 1; depth <= MAX_DEPTH; ++depth) {
-            if (id == 0 && TimeManager::time_up()) break;
+            for (int depth = 1; depth <= MAX_DEPTH; ++depth) {
+                if (id == 0 && TimeManager::time_up()) break;
 
-            int score = search(pos, stack, alpha, beta, depth, 0, true);
+                int score = search(pos, stack, alpha, beta, depth, 0, true);
 
-            if (id == 0 && TimeManager::time_up()) break;
+                if (id == 0 && TimeManager::time_up()) break;
 
-            if (score <= alpha || score >= beta) {
-                alpha = -INF;
-                beta = INF;
-                continue;
+                if (score <= alpha || score >= beta) {
+                    alpha = -INF;
+                    beta = INF;
+                    continue;
+                }
+
+                best_score = score;
+                best_move = stack[0].pv[0];
+                alpha = score - 50;
+                beta = score + 50;
+
+                if (id == 0) {
+                    std::cout << "info depth " << depth
+                              << " score cp " << score
+                              << " time " << TimeManager::time_remaining()
+                              << " pv";
+                    for (int i = 0; i < stack[0].pv_length; ++i)
+                        std::cout << " " << uci_format(stack[0].pv[i]);
+                    std::cout << std::endl;
+                }
+
+                if (id == 0 && TimeManager::time_up()) break;
             }
 
-            best_score = score;
-            best_move = stack[0].pv[0];
-            alpha = score - 50;
-            beta = score + 50;
-
-            if (id == 0) {
-                std::cout << "info depth " << depth
-                          << " score cp " << score
-                          << " time " << TimeManager::time_remaining()
-                          << " pv";
-                for (int i = 0; i < stack[0].pv_length; ++i)
-                    std::cout << " " << uci_format(stack[0].pv[i]);
-                std::cout << std::endl;
+            if (id == 0 && best_move != Move::none()) {
+                std::cout << "bestmove " << uci_format(best_move) << std::endl;
             }
 
-            if (id == 0 && TimeManager::time_up()) break;
+            lock.lock();
+            if (--working_threads == 0)
+                ready = false;
+            lock.unlock();
         }
-
-        if (id == 0 && best_move != Move::none()) {
-            std::cout << "bestmove " << uci_format(best_move) << std::endl;
-        }
-
-        lock.lock();
-        if (--working_threads == 0)
-            ready = false;
-        lock.unlock();
     }
-}
-
-
 
     void update_killer(int ply, Move move) {
         if (killerMoves[0][ply] != move) {
@@ -160,6 +167,7 @@ namespace Search {
     }
 }
 
+// --------------------- UCI Namespace ---------------------
 namespace UCI {
     void set_option(const std::string& cmd) {
         std::istringstream ss(cmd);
@@ -167,6 +175,7 @@ namespace UCI {
         ss >> token >> token; // skip "setoption name"
         while (ss >> token && token != "value") name += token + " ";
         while (ss >> token) value += token;
+
         if (name.find("Threads") != std::string::npos) {
             Search::set_threads(std::stoi(value));
         } else if (name.find("MultiPV") != std::string::npos) {
@@ -174,5 +183,9 @@ namespace UCI {
         } else if (name.find("Ponder") != std::string::npos) {
             ponder = (value == "true" || value == "TRUE");
         }
+    }
+
+    void uci_loop() {
+        ::uci_loop();
     }
 }
