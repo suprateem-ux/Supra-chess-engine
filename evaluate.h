@@ -1,5 +1,7 @@
 #pragma once
 #include "movegen.h"
 
-void init_eval();
-int eval(const Position& pos);
+namespace Eval {
+    void init_eval();
+    int eval(const Position& pos);
+}
