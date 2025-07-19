@@ -12,23 +12,12 @@
 #include <queue>
 
 #include "bitboard.h"
-#include "movegen.h"
+#include "movegen.h"  // Move class already defined here
 #include "evaluate.h"
 #include "uci.h"
 #include "syzygy.h"
 #include "polyglot.h"
 #include "time.h"
-
-// Add a **complete definition** of Position before using it
-enum Color { WHITE, BLACK };
-
-class Position {
-public:
-    Color side;
-    Position() : side(WHITE) {}
-    Color side_to_move() const { return side; }
-    void parse_position(const std::string&) {}
-};
 
 const char* SquareNames[64] = {
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1",
@@ -58,23 +47,7 @@ TranspositionTable TT;
 namespace Polyglot { void load(const std::string&) {} }
 namespace Syzygy { void init(const std::string&) {} }
 
-class Move {
-    int data;
-public:
-    Move() : data(0) {}
-    Move(int from, int to, int promo = 0, int type = 0) {
-        data = (from & 0x3F) | ((to & 0x3F) << 6) | ((promo & 0xF) << 12) | ((type & 0x7) << 16);
-    }
-    int from() const { return data & 0x3F; }
-    int to() const { return (data >> 6) & 0x3F; }
-    std::string to_string() const {
-        std::string s = SquareNames[from()];
-        s += SquareNames[to()];
-        return s;
-    }
-    bool operator==(const Move& other) const { return data == other.data; }
-    bool operator!=(const Move& other) const { return !(*this == other); }
-};
+enum Color { WHITE, BLACK };
 
 Position current_position;
 
