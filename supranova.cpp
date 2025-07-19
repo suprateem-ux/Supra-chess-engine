@@ -1,4 +1,4 @@
-// === SupraNova Engine - All-in-One Unified C++ File ===
+// supranova.cpp
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -10,67 +10,17 @@
 #include <sstream>
 #include <future>
 #include <queue>
-#include <string>
-#include <algorithm>
 
-// === Placeholder Forward Declarations ===
-void init_bitboards() {}
-void init_zobrist() {}
-
-// Dummy Enums/Structs/Globals for Compilation
-enum Color { WHITE, BLACK };
-
-struct Move {
-    int from_sq = 0, to_sq = 0;
-    Move() = default;
-    Move(int f, int t) : from_sq(f), to_sq(t) {}
-    int from() const { return from_sq; }
-    int to() const { return to_sq; }
-    std::string to_string() const {
-        return std::string(1, 'a' + (from_sq % 8)) + std::to_string(1 + (from_sq / 8)) +
-               std::string(1, 'a' + (to_sq % 8)) + std::to_string(1 + (to_sq / 8));
-    }
-    bool operator!=(const Move& other) const { return from_sq != other.from_sq || to_sq != other.to_sq; }
-    bool operator==(const Move& other) const { return from_sq == other.from_sq && to_sq == other.to_sq; }
-};
-
-constexpr int MAX_DEPTH = 64;
-constexpr int INF = 100000;
-
-struct SearchStack {
-    Move pv[MAX_DEPTH];
-    int pv_length = 0;
-};
-
-struct Position {
-    void parse_position(const std::string&) {}
-    Color side_to_move() const { return WHITE; }
-};
-
-namespace Eval {
-    void init_eval() {}
-    int eval(const Position&) { return 0; } // dummy eval
-}
-
-struct TranspositionTable {
-    void resize(size_t) {}
-};
-TranspositionTable TT;
-
-namespace Polyglot {
-    void load(const std::string&) {}
-}
-
-namespace Syzygy {
-    void init(const std::string&) {}
-}
-
-namespace TimeManager {
-    void set_time_control(const std::string&, bool) {}
-    void start_timer() {}
-    bool time_up() { return false; }
-    int time_remaining() { return 123; }
-}
+#include "bitboard.h"
+#include "movegen.h"
+#include "search.h"
+#include "evaluate.h"
+#include "uci.h"
+#include "tt.h"
+#include "syzygy.h"
+#include "polyglot.h"
+#include "time.h"
+#include "position.h"
 
 // === Globals ===
 int multiPV = 1;
@@ -82,7 +32,19 @@ std::string uci_format(const Move& move) {
     return move.to_string();
 }
 
-// === Search Namespace ===
+int main() {
+    std::ios::sync_with_stdio(false);
+    init_bitboards();
+    init_zobrist();
+    Eval::init_eval();
+    TT.resize(64 * 1024 * 1024);
+    Polyglot::load("book.bin");
+    Syzygy::init("syzygy/");
+    UCI::uci_loop();
+    return 0;
+}
+
+// --------------------- Search Namespace ---------------------
 namespace Search {
     int threads = 4;
     std::mutex mtx;
@@ -93,15 +55,9 @@ namespace Search {
     int historyHeuristics[64][64] = {};
     float contempt = 0.0f;
 
-    int search(Position&, SearchStack*, int, int, int, int, bool) {
-        return Eval::eval(current_position); // dummy search function
-    }
-
     void set_threads(int n) {
         threads = std::max(1, n);
     }
-
-    void search_thread(int id);
 
     void start_search(const std::string& cmd) {
         TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
@@ -129,14 +85,18 @@ namespace Search {
 
             Position pos = current_position;
             SearchStack stack[MAX_DEPTH + 1] = {};
-            int alpha = -INF, beta = INF, best_score = -INF;
+            int alpha = -INF;
+            int beta = INF;
+            int best_score = -INF;
             Move best_move;
 
             if (id == 0) TimeManager::start_timer();
 
             for (int depth = 1; depth <= MAX_DEPTH; ++depth) {
                 if (id == 0 && TimeManager::time_up()) break;
+
                 int score = search(pos, stack, alpha, beta, depth, 0, true);
+
                 if (id == 0 && TimeManager::time_up()) break;
 
                 if (score <= alpha || score >= beta) {
@@ -163,11 +123,13 @@ namespace Search {
                 if (id == 0 && TimeManager::time_up()) break;
             }
 
-            if (id == 0 && best_move != Move())
+            if (id == 0 && best_move != Move()) {
                 std::cout << "bestmove " << uci_format(best_move) << std::endl;
+            }
 
             lock.lock();
-            if (--working_threads == 0) ready = false;
+            if (--working_threads == 0)
+                ready = false;
             lock.unlock();
         }
     }
@@ -184,7 +146,7 @@ namespace Search {
     }
 }
 
-// === UCI Namespace ===
+// --------------------- UCI Namespace ---------------------
 namespace UCI {
     void set_option(const std::string& cmd) {
         std::istringstream ss(cmd);
@@ -193,24 +155,25 @@ namespace UCI {
         while (ss >> token && token != "value") name += token + " ";
         while (ss >> token) value += token;
 
-        if (name.find("Threads") != std::string::npos)
+        if (name.find("Threads") != std::string::npos) {
             Search::set_threads(std::stoi(value));
-        else if (name.find("MultiPV") != std::string::npos)
+        } else if (name.find("MultiPV") != std::string::npos) {
             multiPV = std::clamp(std::stoi(value), 1, 5);
-        else if (name.find("Ponder") != std::string::npos)
+        } else if (name.find("Ponder") != std::string::npos) {
             ponder = (value == "true" || value == "TRUE");
+        }
     }
 
     void uci_loop() {
         std::string line;
         while (std::getline(std::cin, line)) {
             if (line == "uci") {
-                std::cout << "id name SupraNova Engine\n"
-                          << "id author Suprateem\n"
-                          << "option name Threads type spin default 4 min 1 max 512\n"
-                          << "option name MultiPV type spin default 1 min 1 max 5\n"
-                          << "option name Ponder type check default false\n"
-                          << "uciok" << std::endl;
+                std::cout << "id name SupraNova Engine" << std::endl;
+                std::cout << "id author Suprateem" << std::endl;
+                std::cout << "option name Threads type spin default 4 min 1 max 512" << std::endl;
+                std::cout << "option name MultiPV type spin default 1 min 1 max 5" << std::endl;
+                std::cout << "option name Ponder type check default false" << std::endl;
+                std::cout << "uciok" << std::endl;
             } else if (line == "isready") {
                 std::cout << "readyok" << std::endl;
             } else if (line.substr(0, 8) == "position") {
@@ -221,22 +184,9 @@ namespace UCI {
                 set_option(line);
             } else if (line == "quit") {
                 quit = true;
-                Search::cv.notify_all();
+                Search::cv.notify_all(); // wake up threads
                 break;
             }
         }
     }
-}
-
-// === Main ===
-int main() {
-    std::ios::sync_with_stdio(false);
-    init_bitboards();
-    init_zobrist();
-    Eval::init_eval();
-    TT.resize(64 * 1024 * 1024);
-    Polyglot::load("book.bin");
-    Syzygy::init("syzygy/");
-    UCI::uci_loop();
-    return 0;
 }
