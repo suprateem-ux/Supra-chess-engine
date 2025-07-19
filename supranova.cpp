@@ -48,6 +48,55 @@ inline int file_of(int sq) {
 inline int rank_of(int sq) {
     return sq / 8;
 }
+
+
+void init_bitboards() {
+    // Placeholder for bitboard initialization
+}
+
+void init_zobrist() {
+    // Placeholder for zobrist initialization
+}
+
+namespace Eval {
+    void init_eval() {
+        // Placeholder for evaluation initialization
+    }
+}
+
+class TranspositionTable {
+public:
+    void resize(size_t sizeMB) {
+        // Placeholder for TT resize logic
+    }
+};
+
+TranspositionTable TT;
+
+namespace Polyglot {
+    void load(const std::string& path) {
+        // Placeholder for Polyglot book loading
+    }
+}
+
+namespace Syzygy {
+    void init(const std::string& path) {
+        // Placeholder for Syzygy tablebase initialization
+    }
+}
+
+namespace Search {
+    struct SearchStack {
+        Move pv[64];
+        int pv_length = 0;
+    };
+
+    int search(Position& pos, SearchStack* ss, int alpha, int beta, int depth, int ply, bool cutNode) {
+        // Placeholder search function
+        return 0;
+    }
+}
+
 // === Globals ===
 int multiPV = 1;
 bool ponder = false;
