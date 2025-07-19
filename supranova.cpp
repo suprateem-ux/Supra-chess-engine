@@ -20,6 +20,7 @@
 #include "tt.h"
 #include "syzygy.h"
 #include "polyglot.h"
+#include "time.h"
 
 int multiPV = 1;
 bool ponder = false;
