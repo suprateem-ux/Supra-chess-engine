@@ -90,7 +90,7 @@ namespace Search {
     void search_thread(int id) {
     while (true) {
         std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [] { return ready || quit; });
+        cv.wait(lock, [] { return ready.load(); });
         if (quit) break;
         lock.unlock();
 
