@@ -1,8 +1,3 @@
-// === SupraNova C++ UCI Chess Engine Core ===
-// Includes: Full bitboard generation, SEE, PVS, LMR (adaptive), NMP, Syzygy, Polyglot, UCI interface,
-//           Singular Extensions, Pawn Hash, Advanced MT, Pondering, Multi-PV, Killer/History Heuristics,
-//           Thread Pools, Contempt
-
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -25,44 +20,26 @@
 #include "time.h"
 #include "position.h"
 
+// === Globals ===
 int multiPV = 1;
 bool ponder = false;
+Position current_position;
+std::atomic<bool> quit{false};
+
+std::string uci_format(const Move& move) {
+    return move.to_string(); // delegates to Move::to_string()
+}
 
 int main() {
     std::ios::sync_with_stdio(false);
     init_bitboards();
     init_zobrist();
-    init_eval();
+    Eval::init_eval();
     TT.resize(64 * 1024 * 1024);
     Polyglot::load("book.bin");
     Syzygy::init("syzygy/");
     UCI::uci_loop();
     return 0;
-}
-
-// --------------------- UCI Loop ---------------------
-void uci_loop() {
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        if (line == "uci") {
-            std::cout << "id name SupraNova Engine" << std::endl;
-            std::cout << "id author Suprateem" << std::endl;
-            std::cout << "option name Threads type spin default 4 min 1 max 512" << std::endl;
-            std::cout << "option name MultiPV type spin default 1 min 1 max 5" << std::endl;
-            std::cout << "option name Ponder type check default false" << std::endl;
-            std::cout << "uciok" << std::endl;
-        } else if (line == "isready") {
-            std::cout << "readyok" << std::endl;
-        } else if (line.substr(0, 8) == "position") {
-            Position::parse_position(line);
-        } else if (line.substr(0, 2) == "go") {
-            Search::start_search(line);
-        } else if (line.substr(0, 9) == "setoption") {
-            UCI::set_option(line);
-        } else if (line == "quit") {
-            break;
-        }
-    }
 }
 
 // --------------------- Search Namespace ---------------------
@@ -109,7 +86,7 @@ namespace Search {
             int alpha = -INF;
             int beta = INF;
             int best_score = -INF;
-            Move best_move = Move::none();
+            Move best_move;
 
             if (id == 0) TimeManager::start_timer();
 
@@ -144,7 +121,7 @@ namespace Search {
                 if (id == 0 && TimeManager::time_up()) break;
             }
 
-            if (id == 0 && best_move != Move::none()) {
+            if (id == 0 && best_move != Move()) {
                 std::cout << "bestmove " << uci_format(best_move) << std::endl;
             }
 
@@ -186,6 +163,28 @@ namespace UCI {
     }
 
     void uci_loop() {
-        ::uci_loop();
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            if (line == "uci") {
+                std::cout << "id name SupraNova Engine" << std::endl;
+                std::cout << "id author Suprateem" << std::endl;
+                std::cout << "option name Threads type spin default 4 min 1 max 512" << std::endl;
+                std::cout << "option name MultiPV type spin default 1 min 1 max 5" << std::endl;
+                std::cout << "option name Ponder type check default false" << std::endl;
+                std::cout << "uciok" << std::endl;
+            } else if (line == "isready") {
+                std::cout << "readyok" << std::endl;
+            } else if (line.substr(0, 8) == "position") {
+                current_position.parse_position(line);
+            } else if (line.substr(0, 2) == "go") {
+                Search::start_search(line);
+            } else if (line.substr(0, 9) == "setoption") {
+                set_option(line);
+            } else if (line == "quit") {
+                quit = true;
+                Search::cv.notify_all(); // wake up threads
+                break;
+            }
+        }
     }
 }
