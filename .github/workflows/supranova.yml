@@ -1,0 +1,46 @@
+name: Build SupraNova
+
+on:
+  push:
+    paths:
+      - '**.cpp'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [linux, windows]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Windows cross-compiler
+        if: matrix.target == 'windows'
+        run: sudo apt-get update && sudo apt-get install -y mingw-w64
+
+      - name: Build for Linux (BMI2)
+        if: matrix.target == 'linux'
+        run: |
+          g++ -O3 -march=bmi2 -std=c++20 -pthread *.cpp -o supranova-bmi2-linux
+
+      - name: Build for Windows
+        if: matrix.target == 'windows'
+        run: |
+          x86_64-w64-mingw32-g++ -O3 -march=haswell -std=c++20 -static -pthread *.cpp -o supranova.exe
+
+      - name: Upload Linux Artifact
+        if: matrix.target == 'linux'
+        uses: actions/upload-artifact@v3
+        with:
+          name: supranova-bmi2-linux
+          path: supranova-bmi2-linux
+
+      - name: Upload Windows Artifact
+        if: matrix.target == 'windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: supranova.exe
+          path: supranova.exe
