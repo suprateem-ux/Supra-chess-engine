@@ -43,7 +43,7 @@ void uci_loop() {
     while (std::getline(std::cin, line)) {
         if (line == "uci") {
             std::cout << "id name SupraNova Engine" << std::endl;
-            std::cout << "id author OpenAI" << std::endl;
+            std::cout << "id author Suprateem" << std::endl;
             std::cout << "option name Threads type spin default 4 min 1 max 512" << std::endl;
             std::cout << "option name MultiPV type spin default 1 min 1 max 5" << std::endl;
             std::cout << "option name Ponder type check default false" << std::endl;
@@ -75,7 +75,7 @@ namespace Search {
     void set_threads(int n) { threads = std::max(1, n); }
 
     void start_search(const std::string& cmd) {
-    TimeManager::set_time_control(cmd, Position::side_to_move() == WHITE);
+    TimeManager::set_time_control(cmd, current_position.side_to_move() == WHITE);
     TimeManager::start_timer();
     ready = false;
     working_threads = threads;
