@@ -34,9 +34,10 @@ int main() {
     TT.resize(64 * 1024 * 1024);
     Polyglot::load("book.bin");
     Syzygy::init("syzygy/");
-    uci_loop();
+    UCI::uci_loop();  // <--- FIXED: Added UCI:: namespace
     return 0;
 }
+
 
 void uci_loop() {
     std::string line;
