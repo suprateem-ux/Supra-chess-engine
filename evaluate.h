@@ -1,5 +1,7 @@
 #pragma once
-#include "movegen.h"
+
+// Forward declaration to avoid circular dependency
+class Position;
 
 namespace Eval {
     void init_eval();
