@@ -13,10 +13,8 @@
 
 #include "bitboard.h"
 #include "movegen.h"
-#include "search.h"
 #include "evaluate.h"
 #include "uci.h"
-#include "tt.h"
 #include "syzygy.h"
 #include "polyglot.h"
 #include "time.h"
