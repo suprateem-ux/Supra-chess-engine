@@ -15,7 +15,7 @@ jobs:
         target: [linux, windows]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Install Windows cross-compiler
         if: matrix.target == 'windows'
@@ -33,14 +33,14 @@ jobs:
 
       - name: Upload Linux Artifact
         if: matrix.target == 'linux'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: supranova-bmi2-linux
           path: supranova-bmi2-linux
 
       - name: Upload Windows Artifact
         if: matrix.target == 'windows'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: supranova.exe
           path: supranova.exe
