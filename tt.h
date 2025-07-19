@@ -7,13 +7,14 @@ struct TTEntry {
     int depth;
     int score;
     int flag;
+    int bestMove;
 };
 
 class TranspositionTable {
 public:
-    void resize(size_t mb);
-    void store(uint64_t key, int depth, int score, int flag);
-    bool probe(uint64_t key, TTEntry& entry);
+    void resize(size_t size);
+    void store(uint64_t key, const TTEntry& entry);
+    TTEntry* probe(uint64_t key);
 };
 
 extern TranspositionTable TT;
