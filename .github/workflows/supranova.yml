@@ -24,8 +24,8 @@ jobs:
       - name: Build for Linux (BMI2)
         if: matrix.target == 'linux'
         run: |
-          g++ -O3 -march=bmi2 -std=c++20 -pthread *.cpp -o supranova-bmi2-linux
-
+          g++ -O3 -march=haswell -std=c++20 -pthread *.cpp -o supranova-linux
+          
       - name: Build for Windows
         if: matrix.target == 'windows'
         run: |
