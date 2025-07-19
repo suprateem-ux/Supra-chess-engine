@@ -11,6 +11,7 @@
 #include <future>
 #include <queue>
 
+// Removed: #include "search.h", "position.h", "tt.h"
 #include "bitboard.h"
 #include "movegen.h"
 #include "evaluate.h"
@@ -30,79 +31,72 @@ const char* SquareNames[64] = {
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"
 };
 
-const char* FileNames[8] = {
-    "a", "b", "c", "d", "e", "f", "g", "h"
-};
+inline int file_of(int sq) { return sq % 8; }
+inline int rank_of(int sq) { return sq / 8; }
 
-const char* RankNames[8] = {
-    "1", "2", "3", "4", "5", "6", "7", "8"
-};
+void init_bitboards() {}
+void init_zobrist() {}
 
-inline int file_of(int sq) {
-    return sq % 8;
-}
-
-inline int rank_of(int sq) {
-    return sq / 8;
-}
-
-
-void init_bitboards() {
-    // Placeholder for bitboard initialization
-}
-
-void init_zobrist() {
-    // Placeholder for zobrist initialization
-}
-
-namespace Eval {
-    void init_eval() {
-        // Placeholder for evaluation initialization
-    }
-}
+namespace Eval { void init_eval() {} }
 
 class TranspositionTable {
 public:
-    void resize(size_t sizeMB) {
-        // Placeholder for TT resize logic
-    }
+    void resize(size_t sizeMB) {}
 };
-
 TranspositionTable TT;
 
-namespace Polyglot {
-    void load(const std::string& path) {
-        // Placeholder for Polyglot book loading
-    }
-}
+namespace Polyglot { void load(const std::string&) {} }
+namespace Syzygy { void init(const std::string&) {} }
 
-namespace Syzygy {
-    void init(const std::string& path) {
-        // Placeholder for Syzygy tablebase initialization
+enum Color { WHITE, BLACK };
+
+class Move {
+    int data;
+public:
+    Move() : data(0) {}
+    Move(int from, int to, int promo = 0, int type = 0) {
+        data = (from & 0x3F) | ((to & 0x3F) << 6) | ((promo & 0xF) << 12) | ((type & 0x7) << 16);
     }
-}
+    int from() const { return data & 0x3F; }
+    int to() const { return (data >> 6) & 0x3F; }
+    std::string to_string() const {
+        std::string s = SquareNames[from()];
+        s += SquareNames[to()];
+        return s;
+    }
+    bool operator==(const Move& other) const { return data == other.data; }
+    bool operator!=(const Move& other) const { return !(*this == other); }
+};
+
+class Position {
+public:
+    Color side;
+    Position() : side(WHITE) {}
+    Color side_to_move() const { return side; }
+    void parse_position(const std::string&) {}
+};
+
+Position current_position;
 
 namespace Search {
+    constexpr int MAX_DEPTH = 64;
+    constexpr int INF = 100000;
+
     struct SearchStack {
         Move pv[64];
         int pv_length = 0;
     };
 
-    int search(Position& pos, SearchStack* ss, int alpha, int beta, int depth, int ply, bool cutNode) {
-        // Placeholder search function
+    int search(Position&, SearchStack*, int, int, int, int, bool) {
         return 0;
     }
 }
 
-// === Globals ===
 int multiPV = 1;
 bool ponder = false;
-Position current_position;
 std::atomic<bool> quit{false};
 
-std::string uci_format(const Move& move) {
-    return move.to_string();
-}
+std::string uci_format(const Move& move) { return move.to_string(); }
 
 int main() {
     std::ios::sync_with_stdio(false);
