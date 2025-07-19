@@ -2,8 +2,9 @@
 #include <string>
 #include "movegen.h"
 
-#define MAX_DEPTH 64
-#define INF 100000
+constexpr int MAX_DEPTH = 64;
+constexpr int INF = 100000;
+using Score = int;
 
 namespace Search {
     void start_search(const std::string& cmd);
